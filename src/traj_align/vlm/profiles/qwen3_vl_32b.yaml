@@ -1,0 +1,17 @@
+id: Qwen/Qwen3-VL-32B-Instruct
+revision: 0cfaf48183f594c314753d30a4c4974bc75f3ccb
+# Conservative default pending an explicit tuning run.
+batch_size: 1
+tuning_batch_sizes: [1, 2, 4, 8, 12, 16, 20, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 168, 176, 184, 192, 200]
+tuning_images: 804
+trust_remote_code: false
+attn_implementation: sdpa
+processor_kwargs: {}
+# NF4 keeps the 62.1 GiB BF16 checkpoint runnable on one 44.6 GiB L40S.
+quantization:
+  method: bitsandbytes_4bit_nf4
+  use_double_quant: true
+  compute_dtype: bfloat16
+device_map: auto
+required_gpus: 1
+minimum_total_gpu_memory_gib: 40

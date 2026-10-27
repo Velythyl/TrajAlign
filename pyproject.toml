@@ -1,0 +1,45 @@
+[project]
+name = "traj-align"
+version = "0.1.0"
+description = "VLM-assisted floor detection and trajectory alignment, extracted from RAGMAP."
+readme = "README.md"
+# Open3D publishes Linux wheels through CPython 3.12.
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "numpy>=1.26",
+  "pillow>=10.0",
+  "jax>=0.4.12",
+  "flax>=0.10",
+  "omegaconf>=2.3",
+]
+
+[project.optional-dependencies]
+# `local` backend: in-process Hugging Face weights (bundled profiles).
+local = [
+  "accelerate>=1.14.0",
+  "transformers>=5.2,<6",
+  "torch>=2.4",
+  "torchvision>=0.28.0",
+  "bitsandbytes>=0.50.0",
+  "einops>=0.8.2",
+  "num2words>=0.5.14",
+  "huggingface_hub>=0.30",
+  # FP8 checkpoints (qwen3_5_35b_a3b) and Qwen3.5's Gated DeltaNet fast path.
+  "kernels>=0.15.2,<0.16",
+  "flash-linear-attention>=0.5.2",
+]
+# `openai` backend (Responses API). `served` needs nothing beyond the stdlib.
+openai = ["openai>=1.0", "tenacity>=8.2"]
+# Optional Open3D render-and-verify pass (`open3d_verification_enabled`).
+open3d = ["open3d>=0.19"]
+all = ["traj-align[local,openai,open3d]"]
+
+[project.scripts]
+traj-align = "traj_align.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/traj_align"]

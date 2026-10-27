@@ -1,0 +1,44 @@
+id: Qwen/Qwen3.5-27B
+revision: fc05daec18b0a78c049392ed2e771dde82bdf654
+# Measured: 3.718 images/s at 32.2 GiB, the fastest candidate in the sweep (80
+# is slower at 3.480 and 96 OOMs), so unlike the BF16 profiles there is no
+# cheaper near-tie to prefer -- the next one down, 48, is 12.6% slower.
+#
+# `flash-linear-attention` matters more here than anywhere else in the family:
+# the same sweep measured 2.113 images/s at this batch size without it, so the
+# fast path is worth +76% on this profile. Do not compare this number against
+# anything measured before that package landed.
+batch_size: 64
+# Starts at 4 because nothing below it is deployable: NF4 is compute-slow, and
+# batch size 1 measured 0.244 images/s (55 min for 804 frames) against 2.113 at
+# 64. The full 1..80 sweep took 2 h 50 m, so this is a "skip the useless
+# candidates" trim, not a wall-clock rescue.
+#
+# Measured pre-`flash-linear-attention`, for the shape of the curve: it is flat
+# from 24 upward -- 2.013 / 2.037 / 2.050 / 2.113 / 2.030 at 24 / 32 / 48 / 64 /
+# 80, OOM at 96 -- so the low end is where the interesting variation is, and the
+# eventual pick will be a low-memory member of that plateau.
+tuning_batch_sizes: [4, 8, 16, 24, 32, 48, 64, 80, 96, 112, 128]
+tuning_images: 804
+trust_remote_code: false
+attn_implementation: sdpa
+processor_kwargs: {}
+# NF4 keeps the 51.7 GiB BF16 checkpoint runnable on one 44.6 GiB L40S, the
+# same trade `qwen3_vl_32b` makes. This one is a *dense* model -- every weight
+# that matters is an `nn.Linear`, which is the only thing
+# `transformers.integrations.bitsandbytes.replace_with_bnb_linear` converts --
+# so NF4 reaches essentially the whole checkpoint (~14 GiB). Contrast
+# `qwen3_5_35b_a3b`, where it would reach almost nothing; see that file.
+quantization:
+  method: bitsandbytes_4bit_nf4
+  use_double_quant: true
+  compute_dtype: bfloat16
+device_map: auto
+# 2026-10-26 (VLM-size sweep at T=1.0 on Fir): runs on a half-H100 MIG slice (3g.40gb, ~39.3 GiB, below the 40
+# this floor used to say). The weights are ~14 GiB and batch 64 peaked at 32.2 GiB, so 38 is the real floor.
+# gpu_reserve_gib gives device_map a GPU-only budget (total - 8 GiB), so _check_placement refuses a load that
+# spilled modules to host RAM instead of running at a crawl. Neither key is in the caption cache key or a cell
+# key (those take the `quantization:` block), and on one 48 GB L40S everything still lands on cuda:0.
+gpu_reserve_gib: 8
+required_gpus: 1
+minimum_total_gpu_memory_gib: 38

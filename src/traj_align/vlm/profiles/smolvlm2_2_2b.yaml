@@ -1,0 +1,8 @@
+id: HuggingFaceTB/SmolVLM2-2.2B-Instruct
+revision: 482adb537c021c86670beed01cd58990d01e72e4
+batch_size: 24
+tuning_batch_sizes: [8, 16, 24, 32, 48, 64, 80, 96, 128]
+tuning_images: 804
+trust_remote_code: false
+attn_implementation: sdpa
+processor_kwargs: {}

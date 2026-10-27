@@ -1,0 +1,10 @@
+id: Qwen/Qwen3.5-4B
+revision: 851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a
+# Measured: 13.952 images/s at 29.7 GiB, against a peak of 14.055 at 256 (36.7
+# GiB, and 320 OOMs). 0.7% slower for 7 GiB less -- inside run-to-run noise.
+batch_size: 192
+tuning_batch_sizes: [32, 64, 96, 128, 192, 256, 320, 384, 448]
+tuning_images: 804
+trust_remote_code: false
+attn_implementation: sdpa
+processor_kwargs: {}

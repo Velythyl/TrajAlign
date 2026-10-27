@@ -1,0 +1,21 @@
+# Qwen3.5-35B-A3B unquantized (BF16, 67.0 GiB), Qwen's original checkpoint. `qwen3_5_35b_a3b` is Qwen's FP8
+# checkpoint because BF16 does not fit a 44.6 GiB L40S (see that file). Added 2026-10-18 as the top of the
+# OL2.5D VLM-size sweep on one 80 GB GPU (A100 80GB or H100: `--gres=gpu:1 --constraint=80gb` on Mila), and
+# as the FP8-vs-BF16 control for the existing 35B point.
+#
+# It is the largest Qwen3.5 this transformers service can hold on one 80 GB GPU: 122B-A10B is 118.4 GiB in
+# FP8, and its GPTQ-Int4 checkpoint (73.4 GiB) needs gptqmodel plus a GPTQ path for the fused MoE experts,
+# which transformers does not have (the same reason NF4 cannot reach these experts).
+id: Qwen/Qwen3.5-35B-A3B
+revision: 59d61f3ce65a6d9863b86d2e96597125219dc754
+# Not tuned. The FP8 profile's batch 48 needed ~5.2 GiB above its 34.9 GiB of weights; the activations are
+# BF16 in both, so 67.0 + ~6 GiB fits an 80 GB card.
+batch_size: 48
+tuning_batch_sizes: [8, 16, 32, 48, 64]
+tuning_images: 804
+trust_remote_code: false
+attn_implementation: sdpa
+processor_kwargs: {}
+device_map: auto
+required_gpus: 1
+minimum_total_gpu_memory_gib: 75

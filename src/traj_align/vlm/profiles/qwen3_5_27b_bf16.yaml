@@ -1,0 +1,21 @@
+# Qwen3.5-27B unquantized (BF16, 51.7 GiB): the same checkpoint and revision as `qwen3_5_27b`, which is NF4
+# so that it fits a 44.6 GiB L40S. Added 2026-10-18 so the OL2.5D VLM-size sweep has a 27B point without the
+# NF4 confound; it needs one 80 GB GPU (A100 80GB or H100: `--gres=gpu:1 --constraint=80gb` on Mila).
+#
+# `cache_variant` keeps this profile's OL2.5D object / point replies apart from the NF4 profile's (the
+# producer's reply cache is keyed by checkpoint id + revision; see OpenLex25DProducer._cache_dir). The
+# service's caption cache already differs, because it keys on the `quantization` block.
+id: Qwen/Qwen3.5-27B
+revision: fc05daec18b0a78c049392ed2e771dde82bdf654
+cache_variant: bf16
+# Not tuned. The NF4 profile peaked at 32.2 GiB with ~14 GiB of weights at batch 64, i.e. ~18 GiB of
+# activations; 51.7 + 18 leaves ~9 GiB of an 80 GB card.
+batch_size: 64
+tuning_batch_sizes: [16, 32, 48, 64, 80, 96, 128]
+tuning_images: 804
+trust_remote_code: false
+attn_implementation: sdpa
+processor_kwargs: {}
+device_map: auto
+required_gpus: 1
+minimum_total_gpu_memory_gib: 70
