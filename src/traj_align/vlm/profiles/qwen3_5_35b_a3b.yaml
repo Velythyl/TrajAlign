@@ -1,0 +1,75 @@
+# Qwen's own FP8 checkpoint, not the BF16 one, and not via our `quantization:`
+# block. Three facts force that combination:
+#
+#  1. BF16 is 67.0 GiB -- far past one 44.6 GiB L40S.
+#  2. `bitsandbytes_4bit_nf4`, the method every other quantized profile here
+#     uses, cannot help. This is a 256-expert MoE, and transformers stores the
+#     experts as fused 3-D `nn.Parameter`s (`Qwen3_5MoeExperts.gate_up_proj`,
+#     `.down_proj`), while `replace_with_bnb_linear` only converts modules whose
+#     `type(...) is nn.Linear`. The experts are 32.2B of the 35.9B parameters,
+#     so NF4 would quantize the 3.7B remainder and leave 60 GiB of BF16 experts
+#     untouched -- ~62 GiB total, a guaranteed OOM that looks like a batch-size
+#     problem.
+#  3. So the quantization has to already be in the weights. FP8 is the variant
+#     that costs no new dependency: transformers' `fp8` quantizer needs only
+#     `accelerate` (already in the `captioning` extra) and compute capability
+#     >= 8.9, and an L40S is exactly 8.9. It also has real fused-expert support
+#     (`FP8Experts`, `fp8_batched_mm_experts_forward`), so unlike NF4 it does
+#     reach the experts.
+#
+# Deliberately no `quantization:` key: the checkpoint carries its own
+# `quantization_config` (`quant_method: fp8`, dynamic activations, 128x128
+# weight blocks) in config.json, so `from_pretrained` picks the quantizer up on
+# its own. Passing one would hit `load_model_and_processor`'s
+# `Unsupported quantization method` guard, which only accepts NF4.
+#
+# The rejected alternative was `Qwen/Qwen3.5-35B-A3B-GPTQ-Int4` -- 22.7 GiB
+# rather than 34.9, so notably more room to batch. It needs `gptqmodel`, which
+# publishes no wheel (sdist only, compiles CUDA extensions against the resolved
+# torch). Worth revisiting if the FP8 sweep proves too memory-starved to reach a
+# useful batch size, and worth measuring against the 27B before then: 34.9 GiB
+# of weights leaves only ~9.7 GiB for activations, which is why this sweep
+# starts at 1 and climbs gently.
+id: Qwen/Qwen3.5-35B-A3B-FP8
+revision: 9d1823d2dee688a6b25e77009dc727688c44936e
+# Measured: 5.950 images/s at 40.1 GiB, the last candidate that fits. 56 and 64
+# both OOM in independent jobs, and the next one down (32, at 4.532) is 24%
+# slower, so there is no cheaper near-tie to prefer -- this is the ceiling and
+# the optimum at once.
+#
+# Getting here took four jobs, and the reason is a trap worth naming. The
+# profile's own sweep reported `best_batch_size: 16` at 2.724 images/s. That was
+# wrong by 2.2x: batch size 32 threw a *spurious* OOM on one node, and because
+# the sweep treats the first OOM as the capacity boundary and stops, 48 was
+# never reached. The tell was that 32 had already succeeded at 38.9 GiB in an
+# earlier run, and that this run used *less* memory than that one at every
+# smaller batch size -- a real ceiling does not move down while memory use also
+# moves down. Re-running 32 and 48 alone on a freshly allocated GPU produced
+# 4.532 and 5.950.
+#
+# So: on this profile, treat a single OOM as a hypothesis. 40.1 GiB of a 44.6
+# GiB card is close enough to the edge that node conditions decide it, which is
+# exactly the regime where one bad sample silently caps the answer.
+batch_size: 48
+# Starts at 4 because nobody would deploy 1 or 2, not for wall clock. An earlier
+# revision of this comment justified the floor with "~7.4 h per candidate",
+# extrapolated from a 4-image smoke test that measured 0.028 images/s. That was
+# wrong by ~30x: the real 804-image sweep runs 0.818 images/s at batch size 4
+# (~16 min) and completes the whole list in well under an hour. Do not size wall
+# clock from a handful of images on this model -- the fixed per-batch cost of
+# the eager expert loop (`Qwen3_5MoeExperts.forward` walks the hit experts one
+# matmul at a time) dominates completely at tiny image counts.
+#
+# Throughput climbs steeply with batch size for that same reason -- more tokens
+# amortise each expert's matmul -- so the useful part of the range is the top:
+# 0.814 / 1.510 / 2.724 / 4.532 / 5.950 images/s at 4 / 8 / 16 / 32 / 48.
+# Stops at 56 because that is the first size that OOMs reproducibly (56 and 64
+# both failed in separate jobs); 48 peaks at 40.1 GiB of a 44.6 GiB card.
+tuning_batch_sizes: [4, 8, 16, 32, 48, 56]
+tuning_images: 804
+trust_remote_code: false
+attn_implementation: sdpa
+processor_kwargs: {}
+device_map: auto
+required_gpus: 1
+minimum_total_gpu_memory_gib: 40

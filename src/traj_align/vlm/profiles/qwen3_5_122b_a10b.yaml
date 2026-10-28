@@ -1,0 +1,42 @@
+# Qwen3.5-122B-A10B (MoE, 256 experts, 8 routed + 1 shared active, ~10B active), Qwen's own FP8 checkpoint:
+# the largest Qwen3.5 this transformers service can run on hardware we can get. Added 2026-10-19 as the top
+# of the OL2.5D VLM-size sweep (openlex25d_{replica,hm3d}_vlmsize; docs §11.12).
+#
+# Why FP8, sharded, on H100 or L40S:
+#  - 122B is 118.5 GiB in FP8 on disk (`quant_method: fp8`, 128x128 weight blocks, dynamic activations: the
+#    scheme of `qwen3_5_35b_a3b`); 116.1 GiB loads (the MTP layer is not loaded). It fits no single GPU.
+#    BF16 would be 228 GiB, and GPTQ-Int4 has no transformers path for the fused MoE experts.
+#  - FP8 compute needs compute capability >= 8.9 (H100, L40S). On an A100 transformers *dequantizes* FP8 to
+#    BF16 with only a warning: another model in all but name. `min_compute_capability` refuses that load.
+#  - One process per service; `device_map: auto` places whole decoder layers across the GPUs the service is
+#    given (pipeline style: one GPU computes at a time), balanced within each card minus `gpu_reserve_gib`.
+#    Hardware-agnostic on purpose, so one method / one cache serves both layouts:
+#      * primary: 2 x H100 80 GB per service, two services per 4 x H100 short-unkillable job
+#        (~58 GiB of weights per card, ~21 GiB free);
+#      * fallback: 4 x L40S per service, one per short-unkillable L40S job (~29 GiB per card, ~15 GiB free).
+#    Same engine, quantizer and Triton FP8 kernels (`kernels-community/finegrained-fp8`) as the 35B-A3B FP8
+#    member; transformers turns DeepGEMM off for an FP8 model spanning several GPUs, on H100 too.
+#  - No `cache_variant`: the checkpoint id is the model's own, and the H100 and L40S layouts compute the same
+#    FP8 math (batched outputs are cache-consistent, not bit-reproducible, on any layout).
+#
+# Measured 2026-10-20 (job 11327109, cn-n002, 2 services x 2 H100): loads in ~215 s, 26 / 27 decoder modules
+# per card, nothing on CPU, ~63 GiB per card idle. Batch 32 hits occasional OOMs (~78-79 GiB peak) that the
+# service's OOM split absorbs; 4 Replica cells (2 per service) captioned 800 frames in ~25 min. Docs §11.13.
+id: Qwen/Qwen3.5-122B-A10B-FP8
+revision: a099dee70ccfcd8d5dda56aaa0b60cb8ecadabc9
+# Not tuned (needs the real layout: `ragmap-vlm-benchmark qwen3_5_122b_a10b` in a short-unkillable job).
+# 35B-A3B FP8 runs 48 with ~5.2 GiB of activations on one card; 122B's per-token activations are ~1.8x
+# (48 layers x 3072 vs 40 x 2048) but spread over 2-4 cards, so 32 is a conservative start.
+batch_size: 32
+tuning_batch_sizes: [8, 16, 32, 48, 64]
+tuning_images: 804
+trust_remote_code: false
+attn_implementation: sdpa
+processor_kwargs: {}
+device_map: auto
+required_gpus: 2
+# 2 x H100 = 158.4, 4 x L40S = 177.6; 2 x L40S (88.8) or one 80 GB card is refused before loading.
+minimum_total_gpu_memory_gib: 150
+# Kept free of weights on every card: H100 budget 71.2 (balancing places ~58), L40S 36.4 (places ~29-30.5).
+gpu_reserve_gib: 8
+min_compute_capability: "8.9"

@@ -1,0 +1,23 @@
+id: Qwen/Qwen3.5-2B
+revision: 15852e8c16360a2fea060d615a32b45270f8a8fc
+# Measured: 23.209 images/s at 18.1 GiB, against a peak of 23.613 at 640 (39.1
+# GiB). 1.7% slower for less than half the memory, which is the trade this
+# project's tuning note asks for.
+#
+# Read this profile's curve before re-tuning it, because it is not monotonic:
+# 128/192/256/384/640 all land at 22.5-23.6 images/s while 320/448/512/576 all
+# land at 17.2-17.4, alternating rather than degrading. Batch count against 804
+# frames does not explain it (640 and 576 are both two batches, and differ by
+# 36%). Cause unknown. It means a sweep that happened to sample only the slow
+# cluster would understate this model by 25%, and it is why the choice here is
+# the *cluster*, not the single best number.
+batch_size: 256
+# Extends past 640 because the first sweep OOMed at 576 *without*
+# flash-linear-attention; with it, the same 9B candidate dropped from 36.4 to
+# 32.3 GiB, so the ceiling moved and the old top of the list would now be the
+# answer only because the list stopped there.
+tuning_batch_sizes: [64, 128, 192, 256, 320, 384, 448, 512, 576, 640, 704, 768]
+tuning_images: 804
+trust_remote_code: false
+attn_implementation: sdpa
+processor_kwargs: {}

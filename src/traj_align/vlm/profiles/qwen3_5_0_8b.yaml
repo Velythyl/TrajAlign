@@ -1,0 +1,13 @@
+# The smallest Qwen3.5 (0.87B BF16 parameters, 1.6 GiB), added 2026-10-18 as the bottom of the OL2.5D
+# VLM-size sweep (openlex25d_{replica,hm3d}_vlmsize). BF16, no quantization, like 2B / 4B / 9B; fits an
+# L40S with room to spare.
+id: Qwen/Qwen3.5-0.8B
+revision: 2fc06364715b967f1860aea9cf38778875588b17
+# Not tuned (scripts/vlm-benchmark-sbatch.sh qwen3_5_0_8b): 256 is the 2B's pick, which used 18.1 GiB, so the
+# smaller model has strictly more headroom at the same batch.
+batch_size: 256
+tuning_batch_sizes: [64, 128, 192, 256, 320, 384, 512, 640, 768]
+tuning_images: 804
+trust_remote_code: false
+attn_implementation: sdpa
+processor_kwargs: {}

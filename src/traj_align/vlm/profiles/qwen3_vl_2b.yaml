@@ -1,0 +1,8 @@
+id: Qwen/Qwen3-VL-2B-Instruct
+revision: 89644892e4d85e24eaac8bacfd4f463576704203
+batch_size: 512
+tuning_batch_sizes: [128, 256, 384, 512, 576]
+tuning_images: 804
+trust_remote_code: false
+attn_implementation: sdpa
+processor_kwargs: {}

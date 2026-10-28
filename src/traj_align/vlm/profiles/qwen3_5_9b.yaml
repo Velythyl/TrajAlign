@@ -1,0 +1,12 @@
+id: Qwen/Qwen3.5-9B
+revision: c202236235762e1c871ad0ccb60c8ee5ba337b9a
+# Measured: 10.095 images/s at 36.0 GiB, against a peak of 10.268 at 192 (39.6
+# GiB, and 224 OOMs). 1.7% slower for 3.7 GiB less. This curve is monotonic --
+# 5.992 at 16 rising smoothly to 10.268 at 192 -- so unlike `qwen3_5_2b` the
+# ranking here can be taken at face value.
+batch_size: 160
+tuning_batch_sizes: [16, 32, 64, 96, 128, 160, 192, 224, 256]
+tuning_images: 804
+trust_remote_code: false
+attn_implementation: sdpa
+processor_kwargs: {}

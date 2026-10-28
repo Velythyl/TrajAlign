@@ -1,0 +1,30 @@
+# NVILA-Lite 2B (NVIDIA, arXiv:2412.04468): the captioner DAAAM's paper (arXiv 2512.00565, Tab. 1/2)
+# ran ReMEmbR with ("NVILA-Lite-2B + GPT-5-mini"; nicogorlo/remembr@497f845
+# preprocess_captions_all.sh uses Efficient-Large-Model/NVILA-Lite-2B through the VILA library).
+# This is NVIDIA's transformers-format export of the same checkpoint (`-hf`), loaded exactly like
+# `nvila_8b` (remote code `modeling_nvila_lite.py` / `processing_nvila_lite.py`, pinned below).
+# Added 2026-10-14 for the NaVQA repro ladder (docs/navqa.md §8).
+#
+# Notes inherited from nvila_8b.yaml (same processor design):
+id: Efficient-Large-Model/NVILA-Lite-2B-hf
+revision: 2e6588960229007b34ba056fda0c47c0dd93340d
+# **1, and it is a fidelity bound, not a tuning result.** `processing_nvila.py`
+# preprocesses a *call* with one image through NVILA's dynamic-S2 tiling
+# (448/896/1344 scales, up to 12 tiles, `block_sizes`), but a call with several
+# images -- which is what the service's batcher makes of N single-image
+# conversations -- takes its multi-image branch: one 448 px tile and 256 tokens
+# per image, no tiling. The captions measurably differ (same two Replica
+# frames, batch of 1 vs 2). Width 1 keeps every frame on the single-image path
+# NVILA was trained and evaluated with. It costs throughput: generation is
+# serial on the card.
+batch_size: 1
+tuning_batch_sizes: [1]
+trust_remote_code: true
+attn_implementation: sdpa
+# The remote processor only accepts decoded images; see
+# `captioning_api.IMAGE_INPUTS`.
+image_input: pil
+# `max_pixels` (sent by every `captioning_*` arm) is accepted and ignored by
+# NVILAProcessor, whose resolution is fixed by the S2 tiling above. It still
+# enters the caption cache key, which is harmless.
+processor_kwargs: {}
