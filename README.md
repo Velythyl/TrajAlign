@@ -21,7 +21,7 @@ Given one trajectory's map, it:
 
 | `--backend` | What it is | Needs |
 |---|---|---|
-| `local` (default) | Hugging Face weights loaded in-process from a bundled profile (`src/traj_align/vlm/profiles/*.yaml`) and freed afterwards | `.[local]`, a GPU (`qwen3_vl_32b` NF4 needs ≥40 GiB) |
+| `local` (default) | Hugging Face weights loaded in-process from a bundled profile (`src/traj_align/vlm/profiles/*.yaml`) and freed afterwards | `.[local]`, a GPU: `qwen3_vl_32b` (NF4) runs on an L40S (verified, ~80 s load + ~12 s answer) but OOMs on a 46 GiB Quadro RTX 8000 with 12 sheets |
 | `served` | Any OpenAI-compatible `/v1/chat/completions` endpoint, such as vLLM, `ragmap-vlm-service`, OpenRouter or Together | `--base-url`; optional Bearer key via `$OPENAI_API_KEY` / `--api-key-file`; `--served-model` names the model |
 | `openai` | OpenAI Responses API | `.[openai]`, `$OPENAI_API_KEY` |
 
