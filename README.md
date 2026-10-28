@@ -1,7 +1,7 @@
 # traj-align
 
 VLM-assisted floor detection and trajectory alignment, extracted from
-[RAGMAP](../ragmap) (`ragmap.alignment.floor` + `ragmap.alignment.common`,
+RAGMAP (`ragmap.alignment.floor` + `ragmap.alignment.common`,
 ragmap commit `4954f41`). Cross-trajectory scene stitching
 (`ragmap.alignment.scene`) is intentionally **not** included.
 
